@@ -17,8 +17,6 @@ pipeline {
                 echo 'Preparing environment terraform'
                 script {
                     env.TERRAFORM_LOCATION = "dev"
-                    env.AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
-                    env.AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY') 
                 }
             }
         }
@@ -46,15 +44,11 @@ pipeline {
         }
         stage('terraform plan') {
             steps {
-                script {
-                    dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
-                    echo 'terraform plan started'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_Credential', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                     sh """
-                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                    terraform plan -no-color -var dev-tst-dem-int=${env.ENVIRONMENT} -var tenant_number=${env.tenant_number}
+                    cd ${TERRAFORM_LOCATION}
+                    terraform plan -no-color -var dev-tst-dem-int=${ENVIRONMENT} -var tenant_number=${tenant_number}
                     """
-                    }
                 }
             }
         }
@@ -63,16 +57,11 @@ pipeline {
                 expression { params.ACTION == "apply" }
             }
 			steps {
-                script {
-                    dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
-                    input message: "Check terraform plan , if okay approve ?"
-                    echo 'terraform apply started'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_Credential', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                     sh """
-                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                    terraform apply -no-color -var dev-tst-dem-int=${env.ENVIRONMENT} -var tenant_number=${env.tenant_number} -auto-approve
+                    cd ${TERRAFORM_LOCATION}
+                    terraform apply -no-color -var dev-tst-dem-int=${ENVIRONMENT} -var tenant_number=${tenant_number} -auto-approve
                     """
-                    }
                 }
 			}
 		}
