@@ -14,12 +14,14 @@ pipeline {
         stage('Environment Preparation') {
             steps {
                 echo 'Preparing environment terraform'
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_Credential', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                       sh  """
+                        AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                       """
+                    }
                 script {
                     env.TERRAFORM_LOCATION = "dev"
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS_Credential', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-                        env.AWS_ACCESS_KEY_ID = ${AWS_ACCESS_KEY_ID}
-                        env.AWS_SECRET_ACCESS_KEY = ${AWS_SECRET_ACCESS_KEY}
-                    }
                 }
             }
         }
