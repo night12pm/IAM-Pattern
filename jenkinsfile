@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+    parameters { 
+        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'int'], description: 'environment to deploy the app')
+        string(defaultValue: "0", description: 'Tenant_Number', name: 'tenant_number')
+        choice(name: 'ACTION', choices: ['plan','apply'], description: 'terraform action to run')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+				checkout scm
+			}
+        }
+        stage('Environment Preparation') {
+            steps {
+                echo 'Preparing environment terraform'
+                script {
+                    env.TERRAFORM_LOCATION = "dev"
+                }
+            }
+        }
+        stage('terraform clean') {
+            steps {
+                script {
+                    dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
+                    echo 'cleaning terraform workspace'
+                    sh "rm -rf .terraform"
+                }
+            }
+        }
+        stage('terrafrom init') {
+            steps {
+                script {
+                    dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
+                    echo 'terraform init started'
+                    sh """
+                    terraform init"
+                    """
+                    }
+                }
+            }
+        }
+        stage('terraform plan') {
+            steps {
+                script {
+                    dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
+                    echo 'terraform plan started'
+                    sh """
+                    terraform plan -no-color -var dev-tst-dem-int=${ENVIRONMENT} -var tenant_number=${tenant_number}
+                    """
+                    }
+                }
+            }
+        }
+        stage('terraform apply') {
+            when {
+                expression { params.ACTION == "apply" }
+            }
+			steps {
+                script {
+                    dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
+                    input message: "Check terraform plan , if okay approve ?"
+                    echo 'terraform apply started'
+                    sh """
+                    terraform apply -no-color -var dev-tst-dem-int=${ENVIRONMENT} -var tenant_number=${tenant_number} -auto-approve
+                    """
+                    }
+                }
+			}
+		}
+	}
+}
