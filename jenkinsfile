@@ -5,16 +5,22 @@ pipeline {
         string(defaultValue: "0", description: 'Tenant_Number', name: 'tenant_number')
         choice(name: 'ACTION', choices: ['plan','apply'], description: 'terraform action to run')
     }
-    environment {
-        TERRAFORM_LOCATION = "dev"
-        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
-        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY') 
-    }
     stages {
+
         stage('checkout') {
             steps {
 				checkout scm
 			}
+        }
+        stage('Environment Preparation') {
+            steps {
+                echo 'Preparing environment terraform'
+                script {
+                    env.TERRAFORM_LOCATION = "dev"
+                    env.AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+                    env.AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY') 
+                }
+            }
         }
         stage('terraform clean') {
             steps {
