@@ -35,7 +35,7 @@ pipeline {
                     dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
                     echo 'terraform init started'
                     sh """
-                    terraform init"
+                    terraform init
                     """
                     }
                 }
