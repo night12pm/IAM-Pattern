@@ -25,6 +25,7 @@ pipeline {
                     dir("${WORKSPACE}/${env.TERRAFORM_LOCATION}") {
                     echo 'cleaning terraform workspace'
                     sh "rm -rf .terraform"
+                    }
                 }
             }
         }
