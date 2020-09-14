@@ -1,0 +1,103 @@
+pipeline {
+    agent any
+    environment { 
+                SHARED_AWS_ACCOUNT_ID = credentials('shared_id')
+                PPV_ACCOUNT_ID = credentials('ppv_npn_id')
+                }
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'int', 'dem'], description: 'Your Environment')
+        string(defaultValue: "0", description: 'Tenant_Number', name: 'tenant_number')
+              }
+    // This displays colors using the 'xterm' ansi color map.
+    options {
+    ansiColor('xterm')
+            }
+    stages {
+         stage('WsCleaup1')  {
+            steps {
+                sh "rm -rf .terraform"
+                sh "rm -rf .git"
+                sh "ls -larth"
+            }
+            }
+        stage('Gitlab') 
+            { // for display purposes
+            // Get some code from a GitHub repository
+            steps {
+          git branch: 'tenant-spark-role',
+      credentialsId: 'jenkins-git-key',
+      url: 'git@git.mckinsey-solutions.com:mash-periscope/ppv-tenant-iam-roles.git'
+      // Get the Maven tool.
+      // ** NOTE: This 'M3' Maven tool must be configured
+      // **       in the global configuration.
+      }
+   }
+   stage('WsCleaup') {
+            steps {
+                step([$class: 'WsCleanup'])
+                checkout scm
+            }
+        }
+
+   stage('Workspace check') {
+       steps {
+          sh "ls -larth"
+      }
+   }
+   stage('Approve to start') {
+       steps {
+           sh "echo ONLY PROCEED IF THERE IS NO *.tfstate FILE"
+           input "terraform backend-init"
+       }
+       }
+       stage('terraform backend-init') {
+        steps {
+            withAWS(role:'ppv_svcrole_chef_provisioning', roleAccount:'392164873763', roleSessionName: 'my-test-session') {
+                sh "echo '\nterraform {\nbackend \"s3\" {\nregion = \"us-east-1\"\nencrypt = true\nbucket = \"$tfbucket\"\nkey = \"tfstate-dir/tenant$tenant_id/tenant${tenant_id}_${state_file}\"\n}\n}\n' > backend.tf"
+                sh "cat backend.tf"
+                sh "ls -lh"
+                sh "rm -rf terraform.tfstate*"
+                sh "terraform init -input=false -lock=true"
+                sh "terraform get"
+        }
+        }
+       }
+        
+      stage('terraform plan') {
+      // Run terraform Plan
+      steps {
+          withAWS(role: 'ppv_svcrole_chef_provisioning', roleAccount: '392164873763', roleSessionName: 'my-test-session') {
+              sh "terraform plan -out=plan.out \
+          -var env=${params.environment_code} \
+          -var account_acronym=${params.account_acronym} \
+          -var tenant_id=${params.tenant_id} \
+          -var shared_aws_account_id=${env.SHARED_AWS_ACCOUNT_ID} \
+          -var appdata_bucket=${params.appdata_bucket} \
+          -var account_id=${env.PPV_ACCOUNT_ID} \
+          -var kms_alias=${params.kms_alias} \
+          -var dynamodb_tenant_name=${params.dynamodb_tenant_name}\
+          -var client_config_bucket=${params.client_config_bucket}\
+          -var db_backup_bucket=${params.db_backup_bucket}"
+      }
+      
+   }
+   }
+   stage('Approve to deploy') {
+       steps {
+           
+           input "terraform_apply"
+       }
+       }
+       stage('terraform_apply') {
+        steps {
+            withAWS(role:'ppv_svcrole_chef_provisioning', roleAccount:'111111111111', roleSessionName: 'my-test-session') {
+
+            sh "terraform apply plan.out"
+            //Run terraform apply.
+            
+        }
+        }
+}
+
+}
+}
